@@ -1,0 +1,13 @@
+# SUS+ Inteligente — dependências (execução local / Google Colab)
+# pyspark NÃO está aqui de propósito: pipeline_dataflow.py roda dentro do
+# OCI Data Flow, que já provê o runtime PySpark — não precisa instalar.
+
+pysus
+requests
+duckdb
+pandas
+pyarrow
+matplotlib
+scikit-learn
+xlrd          # leitura do .xls de população do IBGE (auxiliar_populacao.py)
+oci           # SDK da OCI, usado por bronze_ingestao_vm.py (Instance Principal)
