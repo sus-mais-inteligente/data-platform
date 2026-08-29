@@ -23,3 +23,7 @@ front-end/wallet/
 **/ewallet.pem
 **/keystore.jks
 **/truststore.jks
+
+# scripts/deploy_to_oci.sh output — OCI registry values + runtime secrets
+**/.env.oci
+**/.env.oci.secrets
