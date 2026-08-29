@@ -1,0 +1,6 @@
+streamlit
+oracledb
+pandas
+plotly
+scikit-learn
+pytest

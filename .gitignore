@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# OS
+.DS_Store
+
+# Local pipeline output (bronze/silver/gold written here for local/Colab runs)
+data/
+
+# Streamlit secrets — never commit real credentials
+**/.streamlit/secrets.toml
+
+# Oracle wallet — cert bundle + credentials, never commit
+front-end/wallet/
+**/Wallet_*.zip
+**/cwallet.sso
+**/ewallet.p12
+**/ewallet.pem
+**/keystore.jks
+**/truststore.jks
