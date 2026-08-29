@@ -12,6 +12,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 from core import queries
 from core.connection import get_connection
@@ -46,8 +47,17 @@ def _load_oracle_secrets() -> dict:
     """Local dev reads `.streamlit/secrets.toml` (an `[oracle]` table); the
     OCI Container Instance deployment has no secrets.toml, so credentials
     arrive as env vars instead — same shape either way.
+
+    `st.secrets` raises StreamlitSecretNotFoundError on ANY access (even a
+    plain `in` check) when no secrets.toml exists anywhere on disk, rather
+    than behaving like an empty container — confirmed live in the deployed
+    container, which has no secrets.toml at all.
     """
-    if "oracle" in st.secrets:
+    try:
+        has_oracle_secrets = "oracle" in st.secrets
+    except StreamlitSecretNotFoundError:
+        has_oracle_secrets = False
+    if has_oracle_secrets:
         return dict(st.secrets["oracle"])
     return {
         "user": os.environ["ORACLE_USER"],
