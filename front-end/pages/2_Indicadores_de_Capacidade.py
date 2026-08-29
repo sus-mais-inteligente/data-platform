@@ -9,11 +9,11 @@ from ui_common import (
     render_sidebar_limitacoes,
 )
 
-st.set_page_config(page_title="Indicadores de Capacidade — SUS+ Inteligente", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Indicadores de Capacidade — SUS Mais Inteligente", layout="wide")
 apply_plotly_theme()
 render_sidebar_limitacoes()
 
-st.title("🏥 Indicadores de Capacidade")
+st.title("Indicadores de Capacidade")
 st.caption(
     "Pressão assistencial (internações por leito) por município — um indicador relativo, "
     "não uma taxa de ocupação real. Ver limitações na barra lateral."

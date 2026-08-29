@@ -10,11 +10,11 @@ from ui_common import (
     render_sidebar_limitacoes,
 )
 
-st.set_page_config(page_title="Padrões e Explicabilidade — SUS+ Inteligente", page_icon="🔀", layout="wide")
+st.set_page_config(page_title="Padrões e Explicabilidade — SUS Mais Inteligente", layout="wide")
 apply_plotly_theme()
 render_sidebar_limitacoes()
 
-st.title("🔀 Padrões e Explicabilidade")
+st.title("Padrões e Explicabilidade")
 st.caption(
     "Agrupamento de municípios por perfil de pressão × capacidade, e o que mais está "
     "associado à pressão assistencial — não é previsão (forecasting), é associação no presente."
@@ -26,10 +26,9 @@ with st.spinner("Carregando dados..."):
     df = load_indicador_capacidade_extendido(conn)
 
 st.info(
-    "📍 Agrupamento em nível de **município** — o Oracle ainda não expõe um indicador "
+    "Agrupamento em nível de **município** — o Oracle ainda não expõe um indicador "
     "por estabelecimento, então este bloco não reproduz o agrupamento por estabelecimento "
-    "da análise exploratória original.",
-    icon="ℹ️",
+    "da análise exploratória original."
 )
 
 st.subheader("Agrupamento: pressão × capacidade × permanência")

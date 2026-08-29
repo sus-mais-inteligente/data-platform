@@ -1,7 +1,7 @@
-"""Clustering and explicabilidade analytics — ported from eda_modelagem.py's
-estabelecimento-level KMeans/RandomForest logic, adapted to município-level
-columns (Oracle only exposes indicadores at município granularity, not
-estabelecimento). No Streamlit calls here.
+"""Clusterização e explicabilidade — portado da lógica KMeans/RandomForest
+por estabelecimento do eda_modelagem.py, adaptado pras colunas em nível de
+município (o Oracle só expõe indicadores por município, não por
+estabelecimento). Nenhuma chamada Streamlit aqui.
 """
 
 from __future__ import annotations
@@ -15,9 +15,9 @@ from sklearn.preprocessing import StandardScaler
 
 CLUSTER_FEATURES = ["internacoes_por_leito", "leitos_existentes_total", "permanencia_media_dias"]
 
-# Clusters are always ranked by mean internacoes_por_leito, descending —
-# index 0 is always the highest-pressure group regardless of KMeans' own
-# arbitrary cluster numbering.
+# Os clusters são sempre ranqueados pela média de internacoes_por_leito, em
+# ordem decrescente — o índice 0 é sempre o grupo de maior pressão,
+# independente da numeração arbitrária que o próprio KMeans atribui.
 CLUSTER_PROFILE_NAMES = [
     "Alta pressão (candidato a enviar pacientes)",
     "Equilibrado",
@@ -31,9 +31,10 @@ EXPLICABILIDADE_FEATURES = [
     "motivo_dominante_share",
 ]
 
-# leitos-derived columns are deliberately excluded from EXPLICABILIDADE_FEATURES:
-# pressão assistencial (the target) is internações / leitos, so leitos would be
-# circular as an explanatory variable.
+# Colunas derivadas de leitos são propositalmente excluídas de
+# EXPLICABILIDADE_FEATURES: a pressão assistencial (o alvo) é
+# internações / leitos, então leitos seria circular como variável
+# explicativa.
 EXPLICABILIDADE_LABELS_PT = {
     "permanencia_media_dias": "Permanência média (dias)",
     "estabelecimentos_distintos": "Nº de estabelecimentos distintos (diversidade da rede local)",
@@ -43,11 +44,11 @@ EXPLICABILIDADE_LABELS_PT = {
 
 
 def cluster_municipios(df: pd.DataFrame, n_clusters: int = 3, random_state: int = 42) -> pd.DataFrame:
-    """Cluster municípios by pressão assistencial x capacidade x permanência.
+    """Agrupa municípios por pressão assistencial x capacidade x permanência.
 
-    Returns a copy of `df` (rows missing any cluster feature are dropped)
-    with two new columns: `cluster` (raw KMeans label) and `perfil`
-    (the human-readable pt-BR profile name, ranked by mean pressão).
+    Devolve uma cópia de `df` (linhas sem alguma feature de cluster são
+    descartadas) com duas colunas novas: `cluster` (rótulo bruto do KMeans)
+    e `perfil` (o nome do perfil em pt-BR, legível, ranqueado pela pressão média).
     """
     working = df.dropna(subset=CLUSTER_FEATURES).copy()
     X = working[CLUSTER_FEATURES].fillna(0)
@@ -68,14 +69,14 @@ def cluster_municipios(df: pd.DataFrame, n_clusters: int = 3, random_state: int 
 
 
 def explicabilidade_modelo(df: pd.DataFrame, test_size: float = 0.2, random_state: int = 42) -> dict:
-    """RandomForest explaining pressão assistencial (internações por leito)
-    from non-circular município-level features.
+    """RandomForest explicando a pressão assistencial (internações por leito)
+    a partir de features não circulares, em nível de município.
 
-    Returns {"r2": float, "mae": float, "importancias": pd.Series,
-    "direcao": pd.Series, "labels_pt": dict}. `direcao` is each feature's
-    correlation with the target — positive means the feature pushes pressão
-    up, matching eda_modelagem.py's approach to showing effect direction
-    alongside raw importance.
+    Devolve {"r2": float, "mae": float, "importancias": pd.Series,
+    "direcao": pd.Series, "labels_pt": dict}. `direcao` é a correlação de
+    cada feature com o alvo — positiva significa que a feature empurra a
+    pressão pra cima, seguindo a mesma abordagem do eda_modelagem.py de
+    mostrar a direção do efeito junto com a importância bruta.
     """
     working = df.dropna(subset=EXPLICABILIDADE_FEATURES + ["internacoes_por_leito"]).copy()
     X = working[EXPLICABILIDADE_FEATURES].fillna(0)

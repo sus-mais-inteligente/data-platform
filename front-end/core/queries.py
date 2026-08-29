@@ -1,6 +1,6 @@
-"""Oracle data-access functions. Each function takes a live connection and
-returns a pandas DataFrame — no Streamlit calls anywhere in this module, so
-it can be exercised with a fake connection/cursor in tests.
+"""Funções de acesso a dados no Oracle. Cada função recebe uma connection
+viva e devolve um DataFrame pandas — nenhuma chamada Streamlit neste módulo,
+para poder ser testada com uma connection/cursor fake.
 """
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ def _rows_to_df(cursor) -> pd.DataFrame:
 
 
 def get_indicador_capacidade_extendido(connection) -> pd.DataFrame:
-    """Município-level capacity indicator, extended with motivo dominante and
-    proporção de leitos SUS, joined with município names.
+    """Indicador de capacidade por município, com motivo dominante e
+    proporção de leitos SUS, já com o nome do município via JOIN.
     """
     cursor = connection.cursor()
     cursor.execute(
@@ -42,21 +42,23 @@ def get_indicador_capacidade_extendido(connection) -> pd.DataFrame:
 
 
 def get_motivos_internacao(connection) -> pd.DataFrame:
-    """Overall ranking of capítulos CID-10 by volume.
+    """Ranking geral dos capítulos CID-10 por volume.
 
-    WORKAROUND: the ADMIN.MOTIVOS_INTERNACAO External Table has a shifted
-    column_list — the column named MUNICIPIO_CODIGO actually holds the real
-    total_internacoes count, and the column named TOTAL_INTERNACOES actually
-    holds a small decimal (likely permanencia_media_dias), not a município
-    code or a totals column. Confirmed by cross-checking sums against
-    MOTIVO_POR_MES, which is correctly labeled. Aliased here to their real
-    meaning rather than fixed at the source, per product decision — flagged
-    to the team as a data-platform bug to fix in the External Table DDL.
+    WORKAROUND: a External Table ADMIN.MOTIVOS_INTERNACAO tem o column_list
+    deslocado — a coluna chamada MUNICIPIO_CODIGO na verdade guarda o
+    total_internacoes real, e a coluna chamada TOTAL_INTERNACOES guarda um
+    decimal pequeno (provavelmente permanencia_media_dias), não um código de
+    município nem um total. Confirmado cruzando as somas com MOTIVO_POR_MES,
+    que está corretamente rotulada. Aqui os nomes são realiasados pro
+    significado real, em vez de corrigir na fonte, por decisão de produto —
+    sinalizado pro time como bug de plataforma de dados a corrigir no DDL da
+    External Table.
 
-    MUNICIPIO_CODIGO is declared VARCHAR2 (it's meant to hold codes-as-text),
-    so the real count it's holding here comes back as a string without an
-    explicit cast — TO_NUMBER avoids that count sorting lexicographically
-    instead of numerically wherever it's charted.
+    MUNICIPIO_CODIGO é declarada VARCHAR2 (é feita pra guardar código como
+    texto), então o total real que está armazenado ali volta como string sem
+    um cast explícito — o TO_NUMBER evita que essa contagem seja ordenada
+    como texto (lexicograficamente) em vez de numericamente em qualquer
+    gráfico que a use.
     """
     cursor = connection.cursor()
     cursor.execute(
@@ -73,7 +75,7 @@ def get_motivos_internacao(connection) -> pd.DataFrame:
 
 
 def get_motivo_por_mes(connection) -> pd.DataFrame:
-    """Internações by capítulo CID-10 and mês (for the seasonality heatmap)."""
+    """Internações por capítulo CID-10 e mês (usado no heatmap de sazonalidade)."""
     cursor = connection.cursor()
     cursor.execute(
         """
@@ -86,8 +88,8 @@ def get_motivo_por_mes(connection) -> pd.DataFrame:
 
 
 def get_sazonalidade_mensal(connection) -> pd.DataFrame:
-    """Overall monthly internação volume, derived by summing MOTIVO_POR_MES
-    across capítulos — there is no dedicated Oracle table for this.
+    """Volume mensal total de internações, derivado somando MOTIVO_POR_MES
+    entre os capítulos — não existe tabela dedicada pra isso no Oracle.
     """
     df = get_motivo_por_mes(connection)
     result = (
@@ -100,10 +102,10 @@ def get_sazonalidade_mensal(connection) -> pd.DataFrame:
 
 
 def get_motivo_por_municipio(connection, capitulo_cid: str | None = None) -> pd.DataFrame:
-    """Internações by capítulo CID-10 and município, joined with município names.
+    """Internações por capítulo CID-10 e município, com nome do município via JOIN.
 
-    Pass capitulo_cid to filter to a single capítulo (e.g. for a "where does
-    this motivo concentrate geographically" view).
+    Passe capitulo_cid pra filtrar por um único capítulo (ex.: pra uma visão
+    de "onde esse motivo se concentra geograficamente").
     """
     cursor = connection.cursor()
     sql = """

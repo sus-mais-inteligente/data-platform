@@ -3,8 +3,12 @@ theme, and the sidebar limitations note. Deliberately outside `core/` —
 `core/` stays free of Streamlit so it can be unit tested without it.
 """
 
+from __future__ import annotations
+
 import os
 
+import oracledb
+import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
 import streamlit as st
@@ -55,7 +59,7 @@ def _load_oracle_secrets() -> dict:
 
 
 @st.cache_resource
-def get_cached_connection():
+def get_cached_connection() -> oracledb.Connection:
     return get_connection(_load_oracle_secrets())
 
 
@@ -67,32 +71,32 @@ def get_cached_connection():
 
 
 @st.cache_data(ttl=3600)
-def load_indicador_capacidade_extendido(_connection):
+def load_indicador_capacidade_extendido(_connection: oracledb.Connection) -> pd.DataFrame:
     return queries.get_indicador_capacidade_extendido(_connection)
 
 
 @st.cache_data(ttl=3600)
-def load_motivos_internacao(_connection):
+def load_motivos_internacao(_connection: oracledb.Connection) -> pd.DataFrame:
     return queries.get_motivos_internacao(_connection)
 
 
 @st.cache_data(ttl=3600)
-def load_motivo_por_mes(_connection):
+def load_motivo_por_mes(_connection: oracledb.Connection) -> pd.DataFrame:
     return queries.get_motivo_por_mes(_connection)
 
 
 @st.cache_data(ttl=3600)
-def load_sazonalidade_mensal(_connection):
+def load_sazonalidade_mensal(_connection: oracledb.Connection) -> pd.DataFrame:
     return queries.get_sazonalidade_mensal(_connection)
 
 
 @st.cache_data(ttl=3600)
-def load_motivo_por_municipio(_connection, capitulo_cid=None):
+def load_motivo_por_municipio(_connection: oracledb.Connection, capitulo_cid: str | None = None) -> pd.DataFrame:
     return queries.get_motivo_por_municipio(_connection, capitulo_cid=capitulo_cid)
 
 
 def render_sidebar_limitacoes() -> None:
     with st.sidebar:
         st.markdown("---")
-        with st.expander("⚠️ Limitações dos dados"):
+        with st.expander("Limitações dos dados"):
             st.markdown(LIMITACOES_TEXTO)

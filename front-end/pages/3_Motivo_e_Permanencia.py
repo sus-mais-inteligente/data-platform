@@ -10,11 +10,11 @@ from ui_common import (
     render_sidebar_limitacoes,
 )
 
-st.set_page_config(page_title="Motivo e Permanência — SUS+ Inteligente", page_icon="🩺", layout="wide")
+st.set_page_config(page_title="Motivo e Permanência — SUS Mais Inteligente", layout="wide")
 apply_plotly_theme()
 render_sidebar_limitacoes()
 
-st.title("🩺 Motivo e Permanência")
+st.title("Motivo e Permanência")
 st.caption("Quais são os principais motivos de internação (capítulo CID-10) e onde cada um se concentra geograficamente.")
 
 conn = get_cached_connection()
@@ -38,7 +38,7 @@ st.plotly_chart(fig_motivos, use_container_width=True)
 st.subheader("Permanência média por motivo (estimado)")
 st.caption(
     "Quais motivos resultam em internações mais longas. "
-    "⚠️ Este valor vem de uma coluna com definição ambígua na tabela de origem "
+    "Este valor vem de uma coluna com definição ambígua na tabela de origem "
     "(o significado exato ainda não foi confirmado pelo time de dados) — tratar como estimativa."
 )
 ranking_permanencia = df_motivos.sort_values("permanencia_media_dias_aprox", ascending=True)

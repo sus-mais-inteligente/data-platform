@@ -10,11 +10,11 @@ from ui_common import (
     render_sidebar_limitacoes,
 )
 
-st.set_page_config(page_title="Sazonalidade — SUS+ Inteligente", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Sazonalidade — SUS Mais Inteligente", layout="wide")
 apply_plotly_theme()
 render_sidebar_limitacoes()
 
-st.title("📈 Sazonalidade")
+st.title("Sazonalidade")
 st.caption(
     "Existe sazonalidade no volume de internações ao longo do ano? "
     "Cobertura: fevereiro, junho, agosto e dezembro de 2024 (únicos meses disponíveis na fonte)."

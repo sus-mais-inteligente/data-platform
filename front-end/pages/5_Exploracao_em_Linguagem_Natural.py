@@ -3,11 +3,11 @@ import streamlit as st
 from core.select_ai import ask_select_ai
 from ui_common import apply_plotly_theme, get_cached_connection, render_sidebar_limitacoes
 
-st.set_page_config(page_title="Exploração NL — SUS+ Inteligente", page_icon="💬", layout="wide")
+st.set_page_config(page_title="Exploração NL — SUS Mais Inteligente", layout="wide")
 apply_plotly_theme()
 render_sidebar_limitacoes()
 
-st.title("💬 Exploração em Linguagem Natural")
+st.title("Exploração em Linguagem Natural")
 st.caption(
     "Pergunte sobre os dados de internação em português — sem precisar escrever SQL. "
     "Powered by Oracle Select AI, restrito às tabelas de indicadores deste projeto."
@@ -20,7 +20,7 @@ EXEMPLOS = [
     "Quais municípios têm a maior proporção de leitos SUS?",
 ]
 
-with st.expander("💡 Exemplos de perguntas"):
+with st.expander("Exemplos de perguntas"):
     for exemplo in EXEMPLOS:
         st.markdown(f"- {exemplo}")
 
