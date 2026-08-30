@@ -5,9 +5,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py ui_common.py ./
+COPY Home.py ui_common.py ./
 COPY core/ ./core/
 COPY pages/ ./pages/
+COPY assets/ ./assets/
 COPY .streamlit/config.toml ./.streamlit/config.toml
 
 EXPOSE 80
@@ -21,4 +22,4 @@ EXPOSE 80
 # Oracle credentials (ORACLE_USER, ORACLE_PASSWORD, ORACLE_WALLET_PASSWORD,
 # ORACLE_DSN, ORACLE_WALLET_ZIP_B64) are supplied as env vars/secrets by the
 # OCI Container Instance at runtime — see ui_common._load_oracle_secrets.
-CMD ["streamlit", "run", "app.py", "--server.port=80", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD ["streamlit", "run", "Home.py", "--server.port=80", "--server.address=0.0.0.0", "--server.headless=true"]

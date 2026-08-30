@@ -8,6 +8,7 @@ from ui_common import (
     get_cached_connection,
     load_motivo_por_mes,
     load_sazonalidade_mensal,
+    render_sidebar_brand,
     render_sidebar_limitacoes,
 )
 
@@ -26,9 +27,10 @@ MES_NOMES = {
     "12": "Dezembro",
 }
 
-st.set_page_config(page_title="Sazonalidade — SUS+ Inteligente", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Sazonalidade — SUS+ Inteligente", layout="wide")
 apply_plotly_theme()
 apply_custom_css()
+render_sidebar_brand()
 render_sidebar_limitacoes()
 
 st.title("Sazonalidade")

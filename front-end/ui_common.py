@@ -6,6 +6,7 @@ theme, and the sidebar limitations note. Deliberately outside `core/` —
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import oracledb
 import pandas as pd
@@ -32,6 +33,8 @@ PALETTE = {
     # chart fill — the deck's own #4BA696 only hits 2.75:1 on our bg.
     "primary_text": "#387C71",
 }
+
+_LOGO_PATH = Path(__file__).parent / "assets" / "logo.svg"
 
 LIMITACOES_TEXTO = """
 - **Cobertura**: São Paulo, 2024 — apenas 4 dos 12 meses (fev/jun/ago/dez) têm dado de internação disponível na fonte. 2025 ainda não foi publicado pelo DATASUS.
@@ -80,16 +83,6 @@ def apply_custom_css() -> None:
             color: #24292B;
             text-decoration: underline;
         }
-
-        .brand-mark {
-            font-family: "Schibsted Grotesk", sans-serif;
-            font-weight: 600;
-            font-size: 0.95rem;
-            letter-spacing: 0.01em;
-            margin-bottom: 0.75rem;
-            color: #24292B;
-        }
-        .brand-mark .accent { color: #387C71; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -158,12 +151,16 @@ def load_motivo_por_municipio(_connection: oracledb.Connection, capitulo_cid: st
     return queries.get_motivo_por_municipio(_connection, capitulo_cid=capitulo_cid)
 
 
+def render_sidebar_brand() -> None:
+    """Places the wordmark above Streamlit's own page nav in the sidebar —
+    st.logo() is the only API that reaches that slot; a plain st.sidebar
+    st.markdown() call always renders below the native page list instead.
+    """
+    st.logo(str(_LOGO_PATH))
+
+
 def render_sidebar_limitacoes() -> None:
     with st.sidebar:
-        st.markdown(
-            '<div class="brand-mark">SUS<span class="accent">+</span> Inteligente</div>',
-            unsafe_allow_html=True,
-        )
         st.markdown("---")
         with st.expander("Limitações dos dados"):
             st.markdown(LIMITACOES_TEXTO)

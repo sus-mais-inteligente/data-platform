@@ -8,12 +8,14 @@ from ui_common import (
     apply_plotly_theme,
     get_cached_connection,
     load_indicador_capacidade_extendido,
+    render_sidebar_brand,
     render_sidebar_limitacoes,
 )
 
-st.set_page_config(page_title="Padrões e Explicabilidade — SUS+ Inteligente", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Padrões e Explicabilidade — SUS+ Inteligente", layout="wide")
 apply_plotly_theme()
 apply_custom_css()
+render_sidebar_brand()
 render_sidebar_limitacoes()
 
 st.title("Padrões e Explicabilidade")
@@ -26,12 +28,6 @@ conn = get_cached_connection()
 
 with st.spinner("Carregando dados..."):
     df = load_indicador_capacidade_extendido(conn)
-
-st.info(
-    "Agrupamento em nível de **município** — o Oracle ainda não expõe um indicador "
-    "por estabelecimento, então este bloco não reproduz o agrupamento por estabelecimento "
-    "da análise exploratória original."
-)
 
 st.subheader("Agrupamento: pressão × capacidade × permanência")
 n_clusters = st.slider("Número de grupos", min_value=2, max_value=6, value=3)
@@ -50,6 +46,16 @@ fig_cluster = px.scatter(
         "leitos_existentes_total": "Leitos existentes",
         "internacoes_por_leito": "Internações por leito (pressão)",
         "perfil": "Perfil",
+    },
+    # Explicit mapping, not just a color sequence + implicit row order:
+    # alta pressão is the worse state (worth flagging), so it gets the
+    # alert color; capacidade ociosa is comparatively fine, so it gets the
+    # calm brand teal. Any extra "Grupo N" profile (n_clusters > 3) falls
+    # back to color_discrete_sequence.
+    color_discrete_map={
+        "Alta pressão (candidato a enviar pacientes)": PALETTE["alerta"],
+        "Equilibrado": PALETTE["neutro"],
+        "Capacidade ociosa (pode receber pacientes)": PALETTE["primary"],
     },
     color_discrete_sequence=PALETTE["sequence"],
 )

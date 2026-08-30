@@ -7,12 +7,14 @@ from ui_common import (
     apply_plotly_theme,
     get_cached_connection,
     load_indicador_capacidade_extendido,
+    render_sidebar_brand,
     render_sidebar_limitacoes,
 )
 
-st.set_page_config(page_title="Indicadores de Capacidade — SUS+ Inteligente", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Indicadores de Capacidade — SUS+ Inteligente", layout="wide")
 apply_plotly_theme()
 apply_custom_css()
+render_sidebar_brand()
 render_sidebar_limitacoes()
 
 st.title("Indicadores de Capacidade")

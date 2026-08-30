@@ -1,12 +1,11 @@
 import streamlit as st
 
-from ui_common import apply_custom_css, apply_plotly_theme, render_sidebar_limitacoes
+from ui_common import apply_custom_css, apply_plotly_theme, render_sidebar_brand, render_sidebar_limitacoes
 
 st.session_state.setdefault("welcomed", False)
 
 st.set_page_config(
     page_title="SUS+ Inteligente",
-    page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded" if st.session_state.welcomed else "collapsed",
 )
@@ -15,9 +14,15 @@ apply_custom_css()
 
 
 def _render_splash() -> None:
+    # Dark treatment, matching the team's presentation deck cover slide —
+    # scoped to the splash only (this <style> block is only ever injected
+    # while not welcomed; every other page keeps the light theme).
     st.markdown(
         """
         <style>
+        [data-testid="stApp"], [data-testid="stHeader"] {
+            background-color: #152D32;
+        }
         [data-testid="stMainBlockContainer"] {
             min-height: 88vh;
             display: flex;
@@ -40,15 +45,21 @@ def _render_splash() -> None:
             font-family: "Schibsted Grotesk", sans-serif;
             font-weight: 600;
             font-size: clamp(2.5rem, 6vw, 4.5rem);
-            color: #24292B;
+            color: #FFFFFF;
             margin-bottom: 0.5rem;
         }
-        .splash-wordmark .accent { color: #387C71; }
+        .splash-wordmark .accent { color: #58C09C; }
         .splash-tagline {
             font-family: "Inter", sans-serif;
-            color: #7B8794;
+            color: #A9C4BE;
             font-size: 1.05rem;
             margin-bottom: 2.5rem;
+        }
+        [data-testid="stMainBlockContainer"] [data-testid="stBaseButton-tertiary"] {
+            color: #58C09C;
+        }
+        [data-testid="stMainBlockContainer"] [data-testid="stBaseButton-tertiary"]:hover {
+            color: #FFFFFF;
         }
         </style>
         <div class="splash-wordmark">SUS<span class="accent">+</span> Inteligente</div>
@@ -84,4 +95,5 @@ dados em português, sem precisar escrever SQL.
 - **Exploração em Linguagem Natural** — pergunte em português, veja a resposta, a tabela de resultados e o SQL gerado (Oracle Select AI)
 """
     )
+    render_sidebar_brand()
     render_sidebar_limitacoes()
