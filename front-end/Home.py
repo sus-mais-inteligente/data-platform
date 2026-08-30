@@ -24,10 +24,19 @@ def _render_splash() -> None:
             background-color: #152D32;
         }
         [data-testid="stMainBlockContainer"] {
-            min-height: 88vh;
+            min-height: 100vh;
+            padding-top: 6rem !important;
+            padding-bottom: 6rem !important;
             display: flex;
             flex-direction: column;
             justify-content: center;
+        }
+        /* Streamlit's own wrapper around the block's contents defaults to
+           flex-grow:1, which stretches it to fill the whole container above
+           and leaves no leftover space for justify-content:center to
+           distribute — the actual reason the splash rendered top-aligned. */
+        [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] {
+            flex-grow: 0;
         }
         [data-testid="stMainBlockContainer"] h1,
         [data-testid="stMainBlockContainer"] [data-testid="stMarkdownContainer"],
@@ -64,7 +73,7 @@ def _render_splash() -> None:
         </style>
         <div class="splash-wordmark">SUS<span class="accent">+</span> Inteligente</div>
         <div class="splash-tagline">
-            Painel inteligente de acesso hospitalar — São Paulo, 2024.
+            Painel inteligente de acesso hospitalar
         </div>
         """,
         unsafe_allow_html=True,
