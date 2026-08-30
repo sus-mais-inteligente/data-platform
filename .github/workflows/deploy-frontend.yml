@@ -1,0 +1,99 @@
+name: Deploy frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "front-end/**"
+      - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front-end
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pytest
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to OCIR
+        uses: docker/login-action@v3
+        with:
+          registry: gru.ocir.io
+          username: ${{ secrets.OCIR_USERNAME }}
+          password: ${{ secrets.OCIR_AUTH_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: front-end
+          platforms: linux/amd64
+          push: true
+          tags: |
+            gru.ocir.io/grkdxjifyvni/sus-mais-inteligente-frontend:latest
+            gru.ocir.io/grkdxjifyvni/sus-mais-inteligente-frontend:${{ github.sha }}
+
+      - name: Install OCI CLI
+        run: pip install --quiet oci-cli
+
+      - name: Configure OCI CLI
+        run: |
+          mkdir -p ~/.oci
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=${{ secrets.OCI_CLI_USER }}
+          fingerprint=${{ secrets.OCI_CLI_FINGERPRINT }}
+          tenancy=${{ secrets.OCI_CLI_TENANCY }}
+          region=${{ secrets.OCI_CLI_REGION }}
+          key_file=~/.oci/oci_api_key.pem
+          EOF
+          printf '%s' "${{ secrets.OCI_CLI_KEY_CONTENT }}" > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
+
+      - name: Deploy to OCI Container Instance
+        env:
+          OCI_COMPARTMENT_ID: ${{ secrets.OCI_CLI_TENANCY }}
+          OCI_AVAILABILITY_DOMAIN: ${{ vars.OCI_AVAILABILITY_DOMAIN }}
+          OCI_SUBNET_ID: ${{ vars.OCI_SUBNET_ID }}
+          OCI_RESERVED_PUBLIC_IP_ID: ${{ vars.OCI_RESERVED_PUBLIC_IP_ID }}
+          OCI_IMAGE_URL: gru.ocir.io/grkdxjifyvni/sus-mais-inteligente-frontend:${{ github.sha }}
+          OCIR_USERNAME: ${{ secrets.OCIR_USERNAME }}
+          OCIR_AUTH_TOKEN: ${{ secrets.OCIR_AUTH_TOKEN }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          ORACLE_PASSWORD: ${{ secrets.ORACLE_PASSWORD }}
+          ORACLE_WALLET_PASSWORD: ${{ secrets.ORACLE_WALLET_PASSWORD }}
+          ORACLE_DSN: ${{ secrets.ORACLE_DSN }}
+          ORACLE_WALLET_ZIP_B64: ${{ secrets.ORACLE_WALLET_ZIP_B64 }}
+        run: front-end/scripts/deploy_ci.sh
+
+      - name: Verify deployment
+        run: |
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://susmaisinteligente.kxp.technology/ || echo "000")
+            echo "attempt $i: $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Site did not return 200 after redeploy" >&2
+          exit 1

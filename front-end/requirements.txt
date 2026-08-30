@@ -1,0 +1,6 @@
+streamlit==1.50.0
+oracledb
+pandas
+plotly
+scikit-learn
+pytest
