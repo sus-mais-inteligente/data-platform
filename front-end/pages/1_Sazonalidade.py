@@ -10,6 +10,21 @@ from ui_common import (
     render_sidebar_limitacoes,
 )
 
+MES_NOMES = {
+    "01": "Janeiro",
+    "02": "Fevereiro",
+    "03": "Março",
+    "04": "Abril",
+    "05": "Maio",
+    "06": "Junho",
+    "07": "Julho",
+    "08": "Agosto",
+    "09": "Setembro",
+    "10": "Outubro",
+    "11": "Novembro",
+    "12": "Dezembro",
+}
+
 st.set_page_config(page_title="Sazonalidade — SUS Mais Inteligente", layout="wide")
 apply_plotly_theme()
 render_sidebar_limitacoes()
@@ -27,14 +42,15 @@ with st.spinner("Carregando dados..."):
     df_por_motivo = load_motivo_por_mes(conn)
 
 st.subheader("Volume total de internações por mês")
+df_mensal = df_mensal.assign(mes_nome=df_mensal["mes_competencia"].map(MES_NOMES))
 fig_mensal = px.bar(
     df_mensal,
-    x="mes_competencia",
+    x="mes_nome",
     y="total_internacoes",
-    labels={"mes_competencia": "Mês", "total_internacoes": "Internações"},
+    labels={"mes_nome": "Mês", "total_internacoes": "Internações"},
     color_discrete_sequence=[PALETTE["primary"]],
 )
-fig_mensal.update_layout(xaxis_type="category")
+fig_mensal.update_xaxes(categoryorder="array", categoryarray=df_mensal["mes_nome"].tolist())
 st.plotly_chart(fig_mensal, use_container_width=True)
 
 st.subheader("Sazonalidade por motivo (capítulo CID-10)")
@@ -46,9 +62,12 @@ capitulos_selecionados = st.multiselect(
     options=capitulos_disponiveis,
     default=capitulos_disponiveis,
 )
-df_heatmap = df_por_motivo[df_por_motivo["capitulo_cid"].isin(capitulos_selecionados)]
+df_heatmap = df_por_motivo[df_por_motivo["capitulo_cid"].isin(capitulos_selecionados)].copy()
+df_heatmap["mes_nome"] = df_heatmap["mes_competencia"].map(MES_NOMES)
 
-pivot = df_heatmap.pivot(index="capitulo_cid", columns="mes_competencia", values="total_internacoes")
+pivot = df_heatmap.pivot(index="capitulo_cid", columns="mes_nome", values="total_internacoes")
+meses_presentes = [nome for codigo, nome in MES_NOMES.items() if nome in pivot.columns]
+pivot = pivot[meses_presentes]
 fig_heatmap = px.imshow(
     pivot,
     labels={"x": "Mês", "y": "Capítulo CID-10", "color": "Internações"},
