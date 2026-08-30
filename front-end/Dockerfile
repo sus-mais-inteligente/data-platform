@@ -9,13 +9,15 @@ COPY app.py ui_common.py ./
 COPY core/ ./core/
 COPY pages/ ./pages/
 
-EXPOSE 8080
+EXPOSE 80
 
-# Port 8080 (not Streamlit's default 8501) because Cloudflare's proxy only
-# forwards HTTP to a fixed allow-list of origin ports, and 8080 is on it —
-# see susmaisinteligente.kxp.technology setup.
+# Port 80 (not Streamlit's default 8501): Cloudflare's proxy connects to
+# the origin on port 80 for HTTP by default — anything else needs an
+# explicit Origin Rule on the Cloudflare side. Using 80 needs zero extra
+# Cloudflare config. Container runs as root (no USER set), so binding to
+# this privileged port works fine.
 #
 # Oracle credentials (ORACLE_USER, ORACLE_PASSWORD, ORACLE_WALLET_PASSWORD,
 # ORACLE_DSN, ORACLE_WALLET_ZIP_B64) are supplied as env vars/secrets by the
 # OCI Container Instance at runtime — see ui_common._load_oracle_secrets.
-CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD ["streamlit", "run", "app.py", "--server.port=80", "--server.address=0.0.0.0", "--server.headless=true"]
