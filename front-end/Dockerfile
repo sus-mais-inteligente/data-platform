@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py ui_common.py ./
 COPY core/ ./core/
 COPY pages/ ./pages/
+COPY .streamlit/config.toml ./.streamlit/config.toml
 
 EXPOSE 80
 

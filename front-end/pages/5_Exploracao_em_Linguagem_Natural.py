@@ -1,10 +1,11 @@
 import streamlit as st
 
 from core.select_ai import ask_select_ai
-from ui_common import apply_plotly_theme, get_cached_connection, render_sidebar_limitacoes
+from ui_common import apply_custom_css, apply_plotly_theme, get_cached_connection, render_sidebar_limitacoes
 
-st.set_page_config(page_title="Exploração NL — SUS Mais Inteligente", layout="wide")
+st.set_page_config(page_title="Exploração NL — SUS+ Inteligente", page_icon="🏥", layout="wide")
 apply_plotly_theme()
+apply_custom_css()
 render_sidebar_limitacoes()
 
 st.title("Exploração em Linguagem Natural")

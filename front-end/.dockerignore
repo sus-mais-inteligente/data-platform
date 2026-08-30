@@ -1,6 +1,7 @@
 .venv/
 tests/
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
 wallet/
 __pycache__/
 *.pyc

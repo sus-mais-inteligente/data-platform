@@ -4,14 +4,16 @@ import streamlit as st
 from core.analytics import cluster_municipios, explicabilidade_modelo
 from ui_common import (
     PALETTE,
+    apply_custom_css,
     apply_plotly_theme,
     get_cached_connection,
     load_indicador_capacidade_extendido,
     render_sidebar_limitacoes,
 )
 
-st.set_page_config(page_title="Padrões e Explicabilidade — SUS Mais Inteligente", layout="wide")
+st.set_page_config(page_title="Padrões e Explicabilidade — SUS+ Inteligente", page_icon="🏥", layout="wide")
 apply_plotly_theme()
+apply_custom_css()
 render_sidebar_limitacoes()
 
 st.title("Padrões e Explicabilidade")
@@ -77,7 +79,7 @@ st.subheader("Explicabilidade: o que mais explica a pressão assistencial")
 with st.spinner("Treinando modelo..."):
     resultado = explicabilidade_modelo(df)
 
-st.metric("R² (variação explicada)", f"{resultado['r2'] * 100:.0f}%")
+st.metric("R² (variação explicada)", f"{resultado['r2'] * 100:.0f}%", border=True)
 st.caption(
     "O modelo explica uma parte da variação da pressão assistencial entre municípios usando "
     "variáveis que não fazem parte do próprio cálculo do indicador (leitos foi propositalmente excluído: "

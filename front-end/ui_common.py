@@ -18,11 +18,19 @@ from core import queries
 from core.connection import get_connection
 
 PALETTE = {
-    "primary": "#0B5FA5",
-    "accent": "#00A896",
-    "alerta": "#D64545",
+    # Extracted directly from the team's FIAP presentation deck (sampled
+    # pixel colors, not eyeballed) — keeps the app's chart colors consistent
+    # with the slides rather than an independently invented palette.
+    "primary": "#4BA696",  # brand teal (eyebrow labels/bullets/ranking bars in the deck)
+    "accent": "#377E8D",  # steel teal (the deck's own chart bar color)
+    "alerta": "#C54F4C",  # coral/brick red (the deck's own chart bar color)
     "neutro": "#7B8794",
-    "sequence": ["#0B5FA5", "#00A896", "#F4A261", "#D64545", "#7B2CBF", "#2A9D8F", "#5C6B73"],
+    "sequence": ["#4BA696", "#377E8D", "#C54F4C", "#7B8794", "#58C09C", "#A38B6D", "#5C6B73"],
+    "sequence_continuous": ["#FAF8F4", "#387C71"],
+    # Text-safe (WCAG AA, >=4.5:1 on bg) darkened variant of "primary", for
+    # anywhere the brand teal is used as text/link color rather than a
+    # chart fill — the deck's own #4BA696 only hits 2.75:1 on our bg.
+    "primary_text": "#387C71",
 }
 
 LIMITACOES_TEXTO = """
@@ -36,11 +44,56 @@ LIMITACOES_TEXTO = """
 def apply_plotly_theme() -> None:
     template = go.layout.Template()
     template.layout.colorway = PALETTE["sequence"]
-    template.layout.font = dict(family="-apple-system, Segoe UI, sans-serif", size=13)
+    template.layout.font = dict(family="Inter, -apple-system, sans-serif", size=13)
     template.layout.paper_bgcolor = "rgba(0,0,0,0)"
     template.layout.plot_bgcolor = "rgba(0,0,0,0)"
     pio.templates["sus_inteligente"] = template
     pio.templates.default = "plotly_white+sus_inteligente"
+
+
+def apply_custom_css() -> None:
+    st.markdown(
+        """
+        <style>
+        /* st.divider() has no dedicated data-testid, just a bare <hr> */
+        [data-testid="stElementContainer"] hr {
+            border: none;
+            border-top: 1px solid #DEDAD1;
+            margin: 2.25rem 0;
+        }
+
+        [data-testid="stHeading"] h2,
+        [data-testid="stHeading"] h3 {
+            margin-top: 2.5rem;
+        }
+
+        [data-testid="stMetric"] {
+            padding: 1.25rem 1.5rem;
+        }
+
+        [data-testid="stBaseButton-tertiary"] {
+            color: #387C71;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+        }
+        [data-testid="stBaseButton-tertiary"]:hover {
+            color: #24292B;
+            text-decoration: underline;
+        }
+
+        .brand-mark {
+            font-family: "Schibsted Grotesk", sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            letter-spacing: 0.01em;
+            margin-bottom: 0.75rem;
+            color: #24292B;
+        }
+        .brand-mark .accent { color: #387C71; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _load_oracle_secrets() -> dict:
@@ -107,6 +160,10 @@ def load_motivo_por_municipio(_connection: oracledb.Connection, capitulo_cid: st
 
 def render_sidebar_limitacoes() -> None:
     with st.sidebar:
+        st.markdown(
+            '<div class="brand-mark">SUS<span class="accent">+</span> Inteligente</div>',
+            unsafe_allow_html=True,
+        )
         st.markdown("---")
         with st.expander("Limitações dos dados"):
             st.markdown(LIMITACOES_TEXTO)

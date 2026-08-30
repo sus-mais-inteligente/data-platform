@@ -1,13 +1,74 @@
 import streamlit as st
 
-from ui_common import apply_plotly_theme, render_sidebar_limitacoes
+from ui_common import apply_custom_css, apply_plotly_theme, render_sidebar_limitacoes
 
-st.set_page_config(page_title="SUS Mais Inteligente", layout="wide")
+st.session_state.setdefault("welcomed", False)
+
+st.set_page_config(
+    page_title="SUS+ Inteligente",
+    page_icon="🏥",
+    layout="wide",
+    initial_sidebar_state="expanded" if st.session_state.welcomed else "collapsed",
+)
 apply_plotly_theme()
+apply_custom_css()
 
-st.title("SUS Mais Inteligente")
-st.markdown(
-    """
+
+def _render_splash() -> None:
+    st.markdown(
+        """
+        <style>
+        [data-testid="stMainBlockContainer"] {
+            min-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        [data-testid="stMainBlockContainer"] h1,
+        [data-testid="stMainBlockContainer"] [data-testid="stMarkdownContainer"],
+        [data-testid="stMainBlockContainer"] [data-testid="stButton"] {
+            text-align: center;
+        }
+        [data-testid="stMainBlockContainer"] [data-testid="stElementContainer"]:has([data-testid="stButton"]) {
+            width: 100%;
+        }
+        [data-testid="stMainBlockContainer"] [data-testid="stButton"] {
+            display: flex;
+            justify-content: center;
+        }
+        .splash-wordmark {
+            font-family: "Schibsted Grotesk", sans-serif;
+            font-weight: 600;
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            color: #24292B;
+            margin-bottom: 0.5rem;
+        }
+        .splash-wordmark .accent { color: #387C71; }
+        .splash-tagline {
+            font-family: "Inter", sans-serif;
+            color: #7B8794;
+            font-size: 1.05rem;
+            margin-bottom: 2.5rem;
+        }
+        </style>
+        <div class="splash-wordmark">SUS<span class="accent">+</span> Inteligente</div>
+        <div class="splash-tagline">
+            Painel inteligente de acesso hospitalar — São Paulo, 2024.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.button("Continuar →", type="tertiary"):
+        st.session_state.welcomed = True
+        st.rerun()
+
+
+if not st.session_state.welcomed:
+    _render_splash()
+else:
+    st.title("SUS+ Inteligente")
+    st.markdown(
+        """
 Painel inteligente de acesso hospitalar e perfil de atendimento — dados do
 SIH/SUS, CNES e leitos hospitalares para o estado de São Paulo, 2024.
 
@@ -22,6 +83,5 @@ dados em português, sem precisar escrever SQL.
 - **Padrões e Explicabilidade** — agrupamento de municípios por perfil de pressão × capacidade, e o que mais explica a pressão assistencial
 - **Exploração em Linguagem Natural** — pergunte em português, veja a resposta, a tabela de resultados e o SQL gerado (Oracle Select AI)
 """
-)
-
-render_sidebar_limitacoes()
+    )
+    render_sidebar_limitacoes()

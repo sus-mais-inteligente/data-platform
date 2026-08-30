@@ -3,6 +3,7 @@ import streamlit as st
 
 from ui_common import (
     PALETTE,
+    apply_custom_css,
     apply_plotly_theme,
     get_cached_connection,
     load_motivo_por_mes,
@@ -25,8 +26,9 @@ MES_NOMES = {
     "12": "Dezembro",
 }
 
-st.set_page_config(page_title="Sazonalidade — SUS Mais Inteligente", layout="wide")
+st.set_page_config(page_title="Sazonalidade — SUS+ Inteligente", page_icon="🏥", layout="wide")
 apply_plotly_theme()
+apply_custom_css()
 render_sidebar_limitacoes()
 
 st.title("Sazonalidade")
@@ -71,7 +73,7 @@ pivot = pivot[meses_presentes]
 fig_heatmap = px.imshow(
     pivot,
     labels={"x": "Mês", "y": "Capítulo CID-10", "color": "Internações"},
-    color_continuous_scale="Blues",
+    color_continuous_scale=PALETTE["sequence_continuous"],
     aspect="auto",
 )
 fig_heatmap.update_layout(height=max(400, 28 * len(pivot)))

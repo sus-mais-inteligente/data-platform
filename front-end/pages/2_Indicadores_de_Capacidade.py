@@ -3,14 +3,16 @@ import streamlit as st
 
 from ui_common import (
     PALETTE,
+    apply_custom_css,
     apply_plotly_theme,
     get_cached_connection,
     load_indicador_capacidade_extendido,
     render_sidebar_limitacoes,
 )
 
-st.set_page_config(page_title="Indicadores de Capacidade — SUS Mais Inteligente", layout="wide")
+st.set_page_config(page_title="Indicadores de Capacidade — SUS+ Inteligente", page_icon="🏥", layout="wide")
 apply_plotly_theme()
+apply_custom_css()
 render_sidebar_limitacoes()
 
 st.title("Indicadores de Capacidade")
