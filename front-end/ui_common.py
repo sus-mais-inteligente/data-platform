@@ -114,9 +114,34 @@ def _load_oracle_secrets() -> dict:
     }
 
 
+def _is_connection_alive(connection: oracledb.Connection) -> bool:
+    try:
+        connection.ping()
+        return True
+    except oracledb.Error:
+        return False
+
+
 @st.cache_resource
-def get_cached_connection() -> oracledb.Connection:
+def _get_pooled_connection() -> oracledb.Connection:
     return get_connection(_load_oracle_secrets())
+
+
+def get_cached_connection() -> oracledb.Connection:
+    """Returns the cached Oracle connection, transparently reconnecting if
+    it's gone stale.
+
+    st.cache_resource holds the connection object across reruns/sessions
+    indefinitely (no TTL) — but the Autonomous DB drops idle connections
+    after a period of inactivity, so a long-idle app would keep handing out
+    a dead connection and every query would fail with a broken-connection
+    error instead of the app just quietly reconnecting.
+    """
+    connection = _get_pooled_connection()
+    if not _is_connection_alive(connection):
+        _get_pooled_connection.clear()
+        connection = _get_pooled_connection()
+    return connection
 
 
 # Cached query wrappers. The underlying Oracle gold tables only refresh once

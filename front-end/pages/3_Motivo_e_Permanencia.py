@@ -39,19 +39,15 @@ fig_motivos = px.bar(
 fig_motivos.update_layout(height=max(400, 28 * len(ranking_motivos)))
 st.plotly_chart(fig_motivos, use_container_width=True)
 
-st.subheader("Permanência média por motivo (estimado)")
-st.caption(
-    "Quais motivos resultam em internações mais longas. "
-    "Este valor vem de uma coluna com definição ambígua na tabela de origem "
-    "(o significado exato ainda não foi confirmado pelo time de dados) — tratar como estimativa."
-)
-ranking_permanencia = df_motivos.sort_values("permanencia_media_dias_aprox", ascending=True)
+st.subheader("Permanência média por motivo")
+st.caption("Quais motivos resultam em internações mais longas.")
+ranking_permanencia = df_motivos.sort_values("permanencia_media_dias", ascending=True)
 fig_permanencia = px.bar(
     ranking_permanencia,
-    x="permanencia_media_dias_aprox",
+    x="permanencia_media_dias",
     y="capitulo_cid",
     orientation="h",
-    labels={"permanencia_media_dias_aprox": "Permanência média (dias)", "capitulo_cid": "Capítulo CID-10"},
+    labels={"permanencia_media_dias": "Permanência média (dias)", "capitulo_cid": "Capítulo CID-10"},
     color_discrete_sequence=[PALETTE["accent"]],
 )
 fig_permanencia.update_layout(height=max(400, 28 * len(ranking_permanencia)))

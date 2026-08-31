@@ -1,5 +1,7 @@
 """Fake oracledb connection/cursor for testing the core service layer without a live DB."""
 
+import oracledb
+
 
 class FakeCursor:
     def __init__(self, description, rows):
@@ -39,6 +41,18 @@ class FakeConnection:
 def make_description(column_names):
     """Build a cursor.description-shaped tuple from plain column names."""
     return tuple((name, None, None, None, None, None, True) for name in column_names)
+
+
+class FakePingConnection:
+    """Fake oracledb connection whose .ping() can be told to raise, for
+    testing stale-connection detection without a real Oracle error."""
+
+    def __init__(self, ping_raises: bool):
+        self._ping_raises = ping_raises
+
+    def ping(self):
+        if self._ping_raises:
+            raise oracledb.Error("connection is dead")
 
 
 class FakeVar:

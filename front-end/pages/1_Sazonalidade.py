@@ -13,18 +13,18 @@ from ui_common import (
 )
 
 MES_NOMES = {
-    "01": "Janeiro",
-    "02": "Fevereiro",
-    "03": "Março",
-    "04": "Abril",
-    "05": "Maio",
-    "06": "Junho",
-    "07": "Julho",
-    "08": "Agosto",
-    "09": "Setembro",
-    "10": "Outubro",
-    "11": "Novembro",
-    "12": "Dezembro",
+    1: "Janeiro",
+    2: "Fevereiro",
+    3: "Março",
+    4: "Abril",
+    5: "Maio",
+    6: "Junho",
+    7: "Julho",
+    8: "Agosto",
+    9: "Setembro",
+    10: "Outubro",
+    11: "Novembro",
+    12: "Dezembro",
 }
 
 st.set_page_config(page_title="Sazonalidade — SUS+ Inteligente", layout="wide")
