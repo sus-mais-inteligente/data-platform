@@ -5,8 +5,8 @@ Enterprise Challenge FIAP x Oracle 2026 — Grupo 51 (Turma 1TSCO)
 
 **Equipe:**
 - Renata Cristina de Oliveira (RM 569564) — infraestrutura, pipelines, EDA/modelagem
-- Guilherme Francisco (RM 569145) — Oracle Autonomous DB, JOIN de municípios, Select AI
-- Rafael Canto Xavier (RM 572513) — dashboard (Streamlit)
+- Guilherme Francisco (RM 569145) — Oracle Autonomous DB, JOIN de municípios (pendente), Select AI ✅
+- Rafael Canto Xavier (RM 572513) — dashboard (Streamlit) + chat com Select AI ✅
 
 ---
 
@@ -48,6 +48,11 @@ Oracle Autonomous Database (External Tables)
 no OCI (2 Compute Instances + ~R$1.500 em créditos), e por ser um desafio
 "SUS + Oracle", fez sentido concentrar tudo na plataforma Oracle Cloud.
 
+Arquitetura completa e funcional ponta a ponta: ingestão automatizada,
+processamento distribuído, banco com External Tables, consulta em
+linguagem natural via Select AI (integrada num chat no próprio dashboard)
+e visualização em Streamlit.
+
 **Decisões técnicas documentadas (transparência de processo):**
 - **Databricks foi abandonado** em favor do OCI Data Flow nativo — mais
   alinhado com a stack Oracle do desafio, sem custo de licença adicional.
@@ -74,7 +79,8 @@ data-platform/
 ├── pipeline_completo.py             # bronze -> silver -> gold local (DuckDB/Colab), dev/teste/EDA
 ├── auxiliar_populacao.py            # dado auxiliar de população (IBGE), CSV para External Table
 ├── eda_modelagem.py                 # EDA + clusterização + regressão
-├── sql_para_guilherme.sql           # DDL das External Tables (população + indicador extendido)
+├── oracle_db.sql                    # DDL das External Tables, views, permissões (Oracle ADB)
+├── rede_atendimento_cnes_sprint1.py # exploratório Sprint 1 (arquivado, não é produção)
 └── docs/
     └── eda/                         # gráficos gerados (PNG), 01 a 11
 ```
@@ -195,7 +201,7 @@ Console OCI, apontando pro `pipeline_dataflow.py` no bucket de scripts.
 | `INDICADOR_CAPACIDADE_MUNICIPIO` | gold_csv | ✅ criada e testada |
 | `INDICADOR_CAPACIDADE_MUNICIPIO_EXTENDIDO` | gold_csv | ✅ criada (motivo dominante + % leitos SUS) |
 | `POPULACAO_MUNICIPIO` | auxiliar (IBGE) | ✅ criada — resolve o requisito de CSV auxiliar do edital |
-| Nome de município (JOIN com IBGE) | `kelvins/municipios-brasileiros` | 🔲 responsabilidade do Guilherme — `SUBSTR(codigo_ibge,1,6)` pra bater com o código de 6 dígitos do DATASUS |
+| Nome de município (JOIN com IBGE) | view sobre `POPULACAO_MUNICIPIO` | ✅ concluído — view `INDICADOR_CAPACIDADE_MUNICIPIO_COM_NOME` criada e testada, com permissão de leitura liberada pro usuário do dashboard (`USR_FRONTEND`) |
 
 ---
 
@@ -231,14 +237,15 @@ A pressão assistencial é calculada dividindo internações por leitos — usar
 isso o modelo de explicabilidade usa só variáveis que não fazem parte do
 cálculo do alvo.
 
-### Nome de município nos gráficos
+### Nome de município nos gráficos e no Oracle
 
-O `eda_modelagem.py` já traz nome de município nos gráficos e CSVs,
+O `eda_modelagem.py` traz nome de município nos gráficos e CSVs locais,
 via JOIN direto com a base pública do IBGE (`kelvins/municipios-brasileiros`,
-`SUBSTR(codigo_ibge,1,6)` — mesma lógica que o Guilherme está aplicando no
-lado do Oracle). Isso roda independente do JOIN do Guilherme estar pronto
-ou não — se a coluna de nome já existir na base gold (depois que ele subir
-o JOIN dele), o script usa ela direto; senão, resolve sozinho.
+`SUBSTR(codigo_ibge,1,6)`). No Oracle, o mesmo resultado é resolvido pela
+view `INDICADOR_CAPACIDADE_MUNICIPIO_COM_NOME`, que reaproveita
+`POPULACAO_MUNICIPIO` (já tinha `NOME_MUNICIPIO` junto com a população) —
+sem precisar de external table nova. Select AI e dashboard já podem
+consultar essa view diretamente, com nome de cidade em vez de código.
 
 ---
 
@@ -266,11 +273,8 @@ Essa integração não foi feita nesta sprint — priorizamos consolidar a base
 SIH+CNES+Leitos exigida no escopo do desafio. Fica documentado como
 extensão natural do modelo.
 
-### Outras pendências / próximos passos
+### Próximos passos
 
-- Testar Select AI (Guilherme)
-- Construir o dashboard Streamlit (Rafael)
-- JOIN de nome de município na tabela Oracle (Guilherme — `kelvins/municipios-brasileiros`)
 - Testar integração com o SIA (atendimentos ambulatoriais) — ver limitação acima
 - Interface para o paciente via chatbot de triagem — fase seguinte, depois
   de consolidada a parte de gestão/stakeholders

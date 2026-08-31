@@ -36,13 +36,13 @@ import pandas as pd
 
 UF = "SP"
 ANO = 2024
-# Testado exaustivamente antes: só Fev/Jun/Ago/Dez estavam disponíveis na
-# fonte do pysus para 2024. Deixamos aqui tentando os 12 meses porque a
-# fonte pode ter sido atualizada desde então — bronze_sih() já lida bem
-# com meses que não vierem (avisa e segue com o que encontrar), então não
-# quebra se voltar a ser só 4. Se vier tudo, ótimo: os gráficos de motivo/
-# sazonalidade passam a cobrir o ano inteiro automaticamente.
-MESES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+# Testado exaustivamente 2x: só Fev/Jun/Ago/Dez disponíveis (grupo RD) pra
+# 2024 nessa fonte. Tentamos pedir os 12 meses de uma vez, mas isso faz o
+# pysus baixar vários grupos em paralelo (RD + SP + outros) pra cada mês —
+# gera tanta saída de progresso (tqdm) que trava o navegador no Colab, sem
+# nenhum ganho real (os outros 8 meses nunca vieram com dado RD). Voltando
+# pros 4 meses confirmados — mais rápido e não trava mais.
+MESES = [2, 6, 8, 12]
 
 
 # --- Google Drive (Colab) --------------------------------------------------
@@ -87,35 +87,37 @@ LEITOS_URL = "https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/Leitos_SUS/Le
 # Usada tanto na camada silver (internações) quanto nos indicadores gold
 # de motivo — mesma lógica replicada no pipeline_dataflow.py (PySpark),
 # então os dois pipelines devem gerar os mesmos capítulos.
+# Sem o numeral romano do capítulo (ex: "IX.") no nome — só o texto
+# descritivo, pra limpar a leitura em gráficos/relatórios/Select AI.
 CASE_CAPITULO_CID = """
     CASE
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) IN ('A','B') THEN 'I. Doenças infecciosas e parasitárias'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) IN ('A','B') THEN 'Doenças infecciosas e parasitárias'
         WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'C'
              OR (UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'D' AND TRY_CAST(SUBSTR(DIAG_PRINC,2,2) AS INTEGER) <= 48)
-             THEN 'II. Neoplasias (tumores)'
+             THEN 'Neoplasias (tumores)'
         WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'D' AND TRY_CAST(SUBSTR(DIAG_PRINC,2,2) AS INTEGER) >= 50
-             THEN 'III. Doenças do sangue e sist. imunitário'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'E' THEN 'IV. Doenças endócrinas, nutricionais e metabólicas'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'F' THEN 'V. Transtornos mentais e comportamentais'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'G' THEN 'VI. Doenças do sistema nervoso'
+             THEN 'Doenças do sangue e sist. imunitário'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'E' THEN 'Doenças endócrinas, nutricionais e metabólicas'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'F' THEN 'Transtornos mentais e comportamentais'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'G' THEN 'Doenças do sistema nervoso'
         WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'H' AND TRY_CAST(SUBSTR(DIAG_PRINC,2,2) AS INTEGER) <= 59
-             THEN 'VII. Doenças do olho e anexos'
+             THEN 'Doenças do olho e anexos'
         WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'H' AND TRY_CAST(SUBSTR(DIAG_PRINC,2,2) AS INTEGER) >= 60
-             THEN 'VIII. Doenças do ouvido'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'I' THEN 'IX. Doenças do aparelho circulatório'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'J' THEN 'X. Doenças do aparelho respiratório'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'K' THEN 'XI. Doenças do aparelho digestivo'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'L' THEN 'XII. Doenças da pele'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'M' THEN 'XIII. Doenças osteomusculares'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'N' THEN 'XIV. Doenças do aparelho geniturinário'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'O' THEN 'XV. Gravidez, parto e puerpério'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'P' THEN 'XVI. Afecções do período perinatal'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'Q' THEN 'XVII. Malformações congênitas'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'R' THEN 'XVIII. Sintomas e sinais anormais (sem diagnóstico fechado)'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) IN ('S','T') THEN 'XIX. Lesões e envenenamentos (causas externas)'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) IN ('V','W','X','Y') THEN 'XX. Causas externas de morbidade/mortalidade'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'Z' THEN 'XXI. Contato com serviços de saúde (fatores diversos)'
-        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'U' THEN 'XXII. Códigos para propósitos especiais'
+             THEN 'Doenças do ouvido'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'I' THEN 'Doenças do aparelho circulatório'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'J' THEN 'Doenças do aparelho respiratório'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'K' THEN 'Doenças do aparelho digestivo'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'L' THEN 'Doenças da pele'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'M' THEN 'Doenças osteomusculares'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'N' THEN 'Doenças do aparelho geniturinário'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'O' THEN 'Gravidez, parto e puerpério'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'P' THEN 'Afecções do período perinatal'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'Q' THEN 'Malformações congênitas'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'R' THEN 'Sintomas e sinais anormais (sem diagnóstico fechado)'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) IN ('S','T') THEN 'Lesões e envenenamentos (causas externas)'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) IN ('V','W','X','Y') THEN 'Causas externas de morbidade/mortalidade'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'Z' THEN 'Contato com serviços de saúde (fatores diversos)'
+        WHEN UPPER(SUBSTR(DIAG_PRINC,1,1)) = 'U' THEN 'Códigos para propósitos especiais'
         ELSE 'Não classificado'
     END
 """
@@ -417,12 +419,16 @@ def gold_indicadores():
     print("[gold] sazonalidade mensal ...")
     con.execute(f"""
         COPY (
-            SELECT mes_competencia, COUNT(*) AS total_internacoes,
+            SELECT ano_competencia, mes_competencia, COUNT(*) AS total_internacoes,
                    ROUND(AVG(dias_permanencia), 1) AS permanencia_media_dias,
                    ROUND(AVG(valor_total), 2) AS valor_medio_aih,
-                   SUM(valor_total) AS valor_total_periodo
+                   SUM(valor_total) AS valor_total_periodo,
+                   -- chave cronológica de verdade (ex: 202402), pra ordenar
+                   -- certo em qualquer lugar que consumir essa tabela — nome
+                   -- do mês por extenso ordena alfabético, não cronológico
+                   CAST(ano_competencia AS INTEGER) * 100 + CAST(mes_competencia AS INTEGER) AS ano_mes
             FROM read_parquet('{SILVER_DIR}/internacoes.parquet')
-            GROUP BY mes_competencia ORDER BY mes_competencia
+            GROUP BY ano_competencia, mes_competencia ORDER BY ano_mes
         ) TO '{GOLD_DIR}/sazonalidade_mensal.parquet' (FORMAT PARQUET)
     """)
 
@@ -498,24 +504,44 @@ def gold_motivos():
     """)
 
     print("[gold] motivo por município ...")
-    con.execute(f"""
-        COPY (
-            SELECT capitulo_cid, municipio_estabelecimento AS municipio_codigo,
-                   COUNT(*) AS total_internacoes
-            FROM read_parquet('{SILVER_DIR}/internacoes.parquet')
-            WHERE municipio_estabelecimento IS NOT NULL
-            GROUP BY capitulo_cid, municipio_estabelecimento
-            ORDER BY capitulo_cid, total_internacoes DESC
-        ) TO '{GOLD_DIR}/motivo_por_municipio.parquet' (FORMAT PARQUET)
-    """)
+    caminho_populacao_mm = f"{BASE_DIR}/auxiliares/populacao_municipios_sp_2024.csv"
+    if os.path.exists(caminho_populacao_mm):
+        con.execute(f"""
+            COPY (
+                SELECT m.capitulo_cid, m.municipio_estabelecimento AS municipio_codigo,
+                       p.nome_municipio,
+                       COUNT(*) AS total_internacoes
+                FROM read_parquet('{SILVER_DIR}/internacoes.parquet') m
+                LEFT JOIN read_csv_auto('{caminho_populacao_mm}') p
+                  ON m.municipio_estabelecimento = p.codigo_municipio
+                WHERE m.municipio_estabelecimento IS NOT NULL
+                GROUP BY m.capitulo_cid, m.municipio_estabelecimento, p.nome_municipio
+                ORDER BY m.capitulo_cid, total_internacoes DESC
+            ) TO '{GOLD_DIR}/motivo_por_municipio.parquet' (FORMAT PARQUET)
+        """)
+    else:
+        print("  [aviso] CSV de população não encontrado — motivo_por_municipio sai sem nome_municipio.")
+        print("  Rode auxiliar_populacao.py antes pra ter o nome incluído.")
+        con.execute(f"""
+            COPY (
+                SELECT capitulo_cid, municipio_estabelecimento AS municipio_codigo,
+                       COUNT(*) AS total_internacoes
+                FROM read_parquet('{SILVER_DIR}/internacoes.parquet')
+                WHERE municipio_estabelecimento IS NOT NULL
+                GROUP BY capitulo_cid, municipio_estabelecimento
+                ORDER BY capitulo_cid, total_internacoes DESC
+            ) TO '{GOLD_DIR}/motivo_por_municipio.parquet' (FORMAT PARQUET)
+        """)
 
     print("[gold] motivo por mês (sazonalidade) ...")
     con.execute(f"""
         COPY (
-            SELECT capitulo_cid, mes_competencia, COUNT(*) AS total_internacoes
+            SELECT capitulo_cid, ano_competencia, mes_competencia,
+                   COUNT(*) AS total_internacoes,
+                   CAST(ano_competencia AS INTEGER) * 100 + CAST(mes_competencia AS INTEGER) AS ano_mes
             FROM read_parquet('{SILVER_DIR}/internacoes.parquet')
-            GROUP BY capitulo_cid, mes_competencia
-            ORDER BY capitulo_cid, mes_competencia
+            GROUP BY capitulo_cid, ano_competencia, mes_competencia
+            ORDER BY capitulo_cid, ano_mes
         ) TO '{GOLD_DIR}/motivo_por_mes.parquet' (FORMAT PARQUET)
     """)
     con.close()

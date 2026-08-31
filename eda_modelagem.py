@@ -544,13 +544,15 @@ ax.invert_yaxis()
 ax.set_xlabel("Internações por leito (pressão assistencial)")
 ax.set_title("Top 15 municípios em pressão assistencial:\nmotivo dominante e permanência média")
 
-# anota cada barra com o motivo dominante (sem o numeral romano do capítulo,
-# só o nome, pra ficar mais limpo) + a permanência média daquele município —
-# assim cada linha do gráfico já conta a história completa
+# anota cada barra com o motivo dominante + a permanência média daquele
+# município — assim cada linha do gráfico já conta a história completa.
+# NOTA: capitulo_cid já vem limpo (sem numeral romano) direto da silver
+# desde que ajustamos o pipeline — não corta mais nada aqui. Cortar por
+# ". " era arriscado: nomes como "Doenças do sangue e sist. imunitário"
+# têm um ". " no meio do texto, não só no prefixo, e cortariam errado.
 for barra, (_, row) in zip(barras, top_pressao.iterrows()):
     motivo_texto = row["motivo_dominante"]
-    motivo_curto = motivo_texto.split(". ", 1)[-1] if ". " in motivo_texto else motivo_texto
-    texto = f"{motivo_curto} ({row['motivo_dominante_share']*100:.0f}%) · {row['permanencia_media_dias']:.0f}d de permanência"
+    texto = f"{motivo_texto} ({row['motivo_dominante_share']*100:.0f}%) · {row['permanencia_media_dias']:.0f}d de permanência"
     ax.text(barra.get_width() + top_pressao["internacoes_por_leito"].max() * 0.015,
             barra.get_y() + barra.get_height() / 2, texto,
             va="center", ha="left", fontsize=6.5)

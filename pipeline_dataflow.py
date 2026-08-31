@@ -56,6 +56,9 @@ def oci_path(bucket, path):
 BRONZE_SIH = oci_path(INPUT_BUCKET, f"bronze/sih/sih_{UF}_{ANO}.parquet")
 BRONZE_CNES = oci_path(INPUT_BUCKET, f"bronze/cnes/cnes_{UF}.parquet")
 BRONZE_LEITOS = oci_path(INPUT_BUCKET, f"bronze/leitos/leitos_{UF}_{ANO}.parquet")
+# dado auxiliar (não vem do SIH/CNES/Leitos, é o CSV do IBGE — requisito do
+# edital de "CSV como External Table"), gerado por auxiliar_populacao.py
+AUXILIAR_POPULACAO = oci_path(INPUT_BUCKET, "auxiliares/populacao_municipios_sp_2024.csv")
 
 SILVER_INTERNACOES = oci_path(OUTPUT_BUCKET, "silver/internacoes")
 SILVER_CAPACIDADE = oci_path(OUTPUT_BUCKET, "silver/capacidade_estabelecimento")
@@ -79,32 +82,37 @@ def classificar_capitulo_cid(col_diagnostico):
     oficiais da CID-10 (OMS/DATASUS). Sem isso, "motivo da internação"
     vira uma lista de milhares de códigos únicos e não ajuda ninguém a
     ler o gráfico.
+
+    Sem o numeral romano do capítulo (ex: "IX.") no nome — só o texto
+    descritivo. Isso limpa a leitura em gráficos/relatórios/Select AI. Se
+    precisar da ordem oficial dos capítulos de novo (1 a 22) em algum lugar,
+    usar um mapeamento à parte, não embutir de volta no texto.
     """
     letra = F.upper(F.substring(col_diagnostico, 1, 1))
     numero = F.substring(col_diagnostico, 2, 2).cast(IntegerType())
 
-    return (F.when(letra.isin("A", "B"), "I. Doenças infecciosas e parasitárias")
-        .when((letra == "C") | ((letra == "D") & (numero <= 48)), "II. Neoplasias (tumores)")
-        .when((letra == "D") & (numero >= 50), "III. Doenças do sangue e sist. imunitário")
-        .when(letra == "E", "IV. Doenças endócrinas, nutricionais e metabólicas")
-        .when(letra == "F", "V. Transtornos mentais e comportamentais")
-        .when(letra == "G", "VI. Doenças do sistema nervoso")
-        .when((letra == "H") & (numero <= 59), "VII. Doenças do olho e anexos")
-        .when((letra == "H") & (numero >= 60), "VIII. Doenças do ouvido")
-        .when(letra == "I", "IX. Doenças do aparelho circulatório")
-        .when(letra == "J", "X. Doenças do aparelho respiratório")
-        .when(letra == "K", "XI. Doenças do aparelho digestivo")
-        .when(letra == "L", "XII. Doenças da pele")
-        .when(letra == "M", "XIII. Doenças osteomusculares")
-        .when(letra == "N", "XIV. Doenças do aparelho geniturinário")
-        .when(letra == "O", "XV. Gravidez, parto e puerpério")
-        .when(letra == "P", "XVI. Afecções do período perinatal")
-        .when(letra == "Q", "XVII. Malformações congênitas")
-        .when(letra == "R", "XVIII. Sintomas e sinais anormais (sem diagnóstico fechado)")
-        .when(letra.isin("S", "T"), "XIX. Lesões e envenenamentos (causas externas)")
-        .when(letra.isin("V", "W", "X", "Y"), "XX. Causas externas de morbidade/mortalidade")
-        .when(letra == "Z", "XXI. Contato com serviços de saúde (fatores diversos)")
-        .when(letra == "U", "XXII. Códigos para propósitos especiais")
+    return (F.when(letra.isin("A", "B"), "Doenças infecciosas e parasitárias")
+        .when((letra == "C") | ((letra == "D") & (numero <= 48)), "Neoplasias (tumores)")
+        .when((letra == "D") & (numero >= 50), "Doenças do sangue e sist. imunitário")
+        .when(letra == "E", "Doenças endócrinas, nutricionais e metabólicas")
+        .when(letra == "F", "Transtornos mentais e comportamentais")
+        .when(letra == "G", "Doenças do sistema nervoso")
+        .when((letra == "H") & (numero <= 59), "Doenças do olho e anexos")
+        .when((letra == "H") & (numero >= 60), "Doenças do ouvido")
+        .when(letra == "I", "Doenças do aparelho circulatório")
+        .when(letra == "J", "Doenças do aparelho respiratório")
+        .when(letra == "K", "Doenças do aparelho digestivo")
+        .when(letra == "L", "Doenças da pele")
+        .when(letra == "M", "Doenças osteomusculares")
+        .when(letra == "N", "Doenças do aparelho geniturinário")
+        .when(letra == "O", "Gravidez, parto e puerpério")
+        .when(letra == "P", "Afecções do período perinatal")
+        .when(letra == "Q", "Malformações congênitas")
+        .when(letra == "R", "Sintomas e sinais anormais (sem diagnóstico fechado)")
+        .when(letra.isin("S", "T"), "Lesões e envenenamentos (causas externas)")
+        .when(letra.isin("V", "W", "X", "Y"), "Causas externas de morbidade/mortalidade")
+        .when(letra == "Z", "Contato com serviços de saúde (fatores diversos)")
+        .when(letra == "U", "Códigos para propósitos especiais")
         .otherwise("Não classificado"))
 
 
@@ -161,13 +169,24 @@ def silver_transformar(spark):
 
 def gold_indicadores(spark, internacoes, capacidade, crosswalk):
     print("[gold] sazonalidade mensal ...")
-    (internacoes.groupBy("mes_competencia")
+    sazonalidade = (internacoes.groupBy("ano_competencia", "mes_competencia")
         .agg(F.count("*").alias("total_internacoes"),
              F.round(F.avg("dias_permanencia"), 1).alias("permanencia_media_dias"),
              F.round(F.avg("valor_total"), 2).alias("valor_medio_aih"),
              F.sum("valor_total").alias("valor_total_periodo"))
-        .orderBy("mes_competencia")
-        .write.mode("overwrite").parquet(GOLD_SAZONALIDADE))
+        # ano_mes: chave cronológica de verdade (ex: 202402), pra ordenar
+        # certo em qualquer lugar que consumir essa tabela (dashboard,
+        # Select AI etc.) — nome do mês por extenso ("Agosto", "Dezembro"...)
+        # ordena alfabético, não cronológico (bug que o Rafael encontrou).
+        .withColumn("ano_mes", (F.col("ano_competencia").cast("int") * 100
+                                 + F.col("mes_competencia").cast("int")))
+        .orderBy("ano_mes"))
+    sazonalidade.write.mode("overwrite").parquet(GOLD_SAZONALIDADE)
+    # exporta CSV também — essa tabela nunca tinha virado external table no
+    # Oracle antes (só existia como parquet), por isso o Rafael não tinha
+    # como consultar ela direto do dashboard
+    sazonalidade.coalesce(1).write.mode("overwrite").option("header", True).csv(
+        oci_path(OUTPUT_BUCKET, "gold_csv/sazonalidade_mensal"))
 
     print("[gold] volume por município ...")
     volume = (internacoes.filter(F.col("municipio_estabelecimento").isNotNull())
@@ -224,14 +243,27 @@ def gold_motivos(spark, internacoes):
         .groupBy("capitulo_cid", F.col("municipio_estabelecimento").alias("municipio_codigo"))
         .agg(F.count("*").alias("total_internacoes"))
         .orderBy("capitulo_cid", F.col("total_internacoes").desc()))
+
+    try:
+        populacao_mm = (spark.read.option("header", True).option("inferSchema", True)
+            .csv(AUXILIAR_POPULACAO)
+            .select(F.col("codigo_municipio").alias("municipio_codigo"), "nome_municipio"))
+        motivo_municipio = motivo_municipio.join(populacao_mm, "municipio_codigo", "left")
+        print("    [populacao] JOIN OK — nome de município adicionado em motivo_por_municipio")
+    except Exception as e:
+        print(f"    [aviso] não consegui juntar população em motivo_por_municipio "
+              f"({type(e).__name__}: {e}) — seguindo sem nome_municipio.")
+
     motivo_municipio.write.mode("overwrite").parquet(GOLD_MOTIVO_MUNICIPIO)
     motivo_municipio.coalesce(1).write.mode("overwrite").option("header", True).csv(
         oci_path(OUTPUT_BUCKET, "gold_csv/motivo_por_municipio"))
 
     print("  - motivo_por_mes: 'existe sazonalidade por motivo'")
-    motivo_mes = (internacoes.groupBy("capitulo_cid", "mes_competencia")
+    motivo_mes = (internacoes.groupBy("capitulo_cid", "ano_competencia", "mes_competencia")
         .agg(F.count("*").alias("total_internacoes"))
-        .orderBy("capitulo_cid", "mes_competencia"))
+        .withColumn("ano_mes", (F.col("ano_competencia").cast("int") * 100
+                                 + F.col("mes_competencia").cast("int")))
+        .orderBy("capitulo_cid", "ano_mes"))
     motivo_mes.write.mode("overwrite").parquet(GOLD_MOTIVO_MES)
     motivo_mes.coalesce(1).write.mode("overwrite").option("header", True).csv(
         oci_path(OUTPUT_BUCKET, "gold_csv/motivo_por_mes"))
@@ -245,9 +277,24 @@ def gold_motivos(spark, internacoes):
 
 def gold_indicador_extendido(spark):
     """
-    Junta o indicador de capacidade (pressão assistencial) com o MOTIVO
-    DOMINANTE de cada município — qual capítulo CID-10 concentra mais
-    internações ali, e qual % isso representa do total do município.
+    Junta o indicador de capacidade (pressão assistencial) com:
+      1) o MOTIVO DOMINANTE de cada município — qual capítulo CID-10
+         concentra mais internações ali, e qual % isso representa do
+         total do município;
+      2) NOME DO MUNICÍPIO e POPULAÇÃO ESTIMADA (dado auxiliar do IBGE,
+         gerado por auxiliar_populacao.py) — e o indicador de internações
+         por 1.000 habitantes, que complementa "internações por leito"
+         (esse mede pressão sobre a população real, não só sobre a
+         capacidade instalada).
+
+    DECISÃO DE MODELAGEM: dava pra resolver nome/população só com uma VIEW
+    no Oracle (join em tempo de consulta entre a tabela fato e a dimensão
+    de município) — e é o que fizemos primeiro, funciona bem. Trouxemos
+    também pra dentro da gold porque: (a) fica disponível pra qualquer
+    consumidor que ler o gold_csv direto, não só quem souber consultar a
+    view; e (b) ajuda o Select AI a acertar mais perguntas em linguagem
+    natural, já que a informação já vem pronta numa tabela só, sem exigir
+    que ele "descubra" que precisa juntar duas.
 
     Mesma lógica de window function validada no eda_modelagem.py (Colab),
     só que em PySpark em vez de DuckDB, pra ficar disponível também no
@@ -260,7 +307,7 @@ def gold_indicador_extendido(spark):
     os DataFrames em memória — mais simples de manter que passar tudo
     como parâmetro entre funções).
     """
-    print("[gold] indicador extendido (+ motivo dominante) ...")
+    print("[gold] indicador extendido (+ motivo dominante + nome/população) ...")
     indicador = spark.read.parquet(GOLD_INDICADOR)
     motivo_municipio = spark.read.parquet(GOLD_MOTIVO_MUNICIPIO)
 
@@ -275,6 +322,24 @@ def gold_indicador_extendido(spark):
                 F.round(F.col("total_internacoes") / F.col("total_municipio"), 3).alias("motivo_dominante_share")))
 
     extendido = indicador.join(motivo_dominante, "municipio_codigo", "left")
+
+    try:
+        populacao = (spark.read.option("header", True).option("inferSchema", True)
+            .csv(AUXILIAR_POPULACAO)
+            .select(F.col("codigo_municipio").alias("municipio_codigo"),
+                    "nome_municipio", "populacao_estimada"))
+        extendido = (extendido.join(populacao, "municipio_codigo", "left")
+            .withColumn("internacoes_por_mil_habitantes",
+                        F.round(F.col("total_internacoes") / F.col("populacao_estimada") * 1000, 2)))
+        print(f"  [populacao] JOIN OK — nome de município e indicador por habitante adicionados")
+    except Exception as e:
+        # não deixa a falta do dado auxiliar quebrar o indicador principal —
+        # se o CSV de população não existir/estiver inacessível, segue sem
+        # essas colunas em vez de derrubar todo o job
+        print(f"  [aviso] não consegui juntar população ({type(e).__name__}: {e}) — "
+              f"seguindo sem nome_municipio/populacao_estimada. A view "
+              f"INDICADOR_CAPACIDADE_MUNICIPIO_COM_NOME no Oracle ainda cobre isso.")
+
     extendido.write.mode("overwrite").parquet(GOLD_INDICADOR_EXTENDIDO)
     extendido.coalesce(1).write.mode("overwrite").option("header", True).csv(
         oci_path(OUTPUT_BUCKET, "gold_csv/indicador_capacidade_municipio_extendido"))
