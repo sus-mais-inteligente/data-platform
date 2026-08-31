@@ -1,0 +1,9 @@
+.venv/
+tests/
+.streamlit/*
+!.streamlit/config.toml
+wallet/
+__pycache__/
+*.pyc
+.pytest_cache/
+pytest.ini
