@@ -12,7 +12,7 @@ def test_rows_to_df_lowercases_columns():
     assert df.iloc[0]["total_internacoes"] == 656
 
 
-def test_get_indicador_capacidade_extendido_returns_joined_rows():
+def test_get_indicador_capacidade_extendido_returns_rows_with_name():
     description = make_description(
         [
             "MUNICIPIO_CODIGO",
@@ -52,7 +52,12 @@ def test_get_indicador_capacidade_extendido_returns_joined_rows():
     assert df.iloc[0]["motivo_dominante"] == "XIX. Lesões e envenenamentos (causas externas)"
 
 
-def test_get_indicador_capacidade_extendido_sql_joins_municipio_names():
+def test_get_indicador_capacidade_extendido_sql_uses_denormalized_table():
+    """MUNICIPIOS_BRASILEIROS was dropped from the data model — municipality
+    names are now denormalized directly onto
+    ADMIN.INDICADOR_CAPACIDADE_MUNICIPIO_EXTENDIDO, so this query no longer
+    needs (and must not attempt) a JOIN.
+    """
     description = make_description(["MUNICIPIO_CODIGO", "MUNICIPIO_NOME"])
     cursor = FakeCursor(description, rows=[])
     connection = FakeConnection([cursor])
@@ -60,46 +65,24 @@ def test_get_indicador_capacidade_extendido_sql_joins_municipio_names():
     queries.get_indicador_capacidade_extendido(connection)
 
     sql = cursor.executed_sql[0]
-    assert "INDICADOR_CAPACIDADE_EXTENDIDO" in sql
-    assert "MUNICIPIOS_BRASILEIROS" in sql
+    assert "INDICADOR_CAPACIDADE_MUNICIPIO_EXTENDIDO" in sql
+    assert "JOIN" not in sql
 
 
-def test_get_motivos_internacao_applies_column_workaround():
-    """MOTIVOS_INTERNACAO's External Table definition has shifted columns:
-    the column named MUNICIPIO_CODIGO actually holds total_internacoes, and
-    the column named TOTAL_INTERNACOES actually holds an average (likely
-    permanencia_media_dias). Verified by cross-checking against MOTIVO_POR_MES
-    (whose sums match the mislabeled MUNICIPIO_CODIGO column exactly).
+def test_get_motivos_internacao_returns_rows():
+    """MOTIVOS_INTERNACAO's column-shift bug (see git history) was fixed
+    upstream by the data team — this now reads plain, correctly named
+    columns, no TO_NUMBER workaround needed.
     """
-    # description reflects the SQL's AS aliases, which is what a real
-    # cursor.description returns post-query — not the source column names.
-    description = make_description(["CAPITULO_CID", "TOTAL_INTERNACOES", "PERMANENCIA_MEDIA_DIAS_APROX"])
+    description = make_description(["CAPITULO_CID", "TOTAL_INTERNACOES", "PERMANENCIA_MEDIA_DIAS"])
     rows = [("I. Doenças infecciosas e parasitárias", 47675, 9.4)]
     connection = FakeConnection([FakeCursor(description, rows)])
 
     df = queries.get_motivos_internacao(connection)
 
-    assert list(df.columns) == ["capitulo_cid", "total_internacoes", "permanencia_media_dias_aprox"]
+    assert list(df.columns) == ["capitulo_cid", "total_internacoes", "permanencia_media_dias"]
     assert df.iloc[0]["total_internacoes"] == 47675
-    assert df.iloc[0]["permanencia_media_dias_aprox"] == 9.4
-
-
-def test_get_motivos_internacao_casts_total_internacoes_to_number():
-    """MUNICIPIO_CODIGO (the mislabeled source column) is VARCHAR2 in Oracle,
-    so without an explicit TO_NUMBER cast in the query, the real
-    total_internacoes count comes back as a string — which sorts
-    lexicographically instead of numerically in any chart built on top of
-    it. Caught via a live app screenshot, not by the mocked tests above
-    (a fake cursor can't reproduce Oracle's own column typing) — so this
-    test checks the query casts explicitly rather than re-mocking the bug.
-    """
-    description = make_description(["CAPITULO_CID", "TOTAL_INTERNACOES", "PERMANENCIA_MEDIA_DIAS_APROX"])
-    cursor = FakeCursor(description, rows=[])
-    connection = FakeConnection([cursor])
-
-    queries.get_motivos_internacao(connection)
-
-    assert "TO_NUMBER(municipio_codigo)" in cursor.executed_sql[0]
+    assert df.iloc[0]["permanencia_media_dias"] == 9.4
 
 
 def test_get_motivo_por_mes_returns_rows():
@@ -131,7 +114,7 @@ def test_get_sazonalidade_mensal_aggregates_across_motivos():
     assert result == {"02": 150, "06": 200}
 
 
-def test_get_motivo_por_municipio_joins_municipio_names():
+def test_get_motivo_por_municipio_returns_rows_with_name():
     description = make_description(["CAPITULO_CID", "MUNICIPIO_CODIGO", "MUNICIPIO_NOME", "TOTAL_INTERNACOES"])
     rows = [("I. Doenças infecciosas e parasitárias", "355030", "São Paulo", 12725)]
     connection = FakeConnection([FakeCursor(description, rows)])
@@ -139,6 +122,20 @@ def test_get_motivo_por_municipio_joins_municipio_names():
     df = queries.get_motivo_por_municipio(connection)
 
     assert df.iloc[0]["municipio_nome"] == "São Paulo"
+
+
+def test_get_motivo_por_municipio_sql_uses_denormalized_table():
+    """MUNICIPIOS_BRASILEIROS was dropped — MOTIVO_POR_MUNICIPIO now carries
+    nome_municipio directly, so this query must not JOIN anymore."""
+    description = make_description(["CAPITULO_CID", "MUNICIPIO_CODIGO", "MUNICIPIO_NOME", "TOTAL_INTERNACOES"])
+    cursor = FakeCursor(description, rows=[])
+    connection = FakeConnection([cursor])
+
+    queries.get_motivo_por_municipio(connection)
+
+    sql = cursor.executed_sql[0]
+    assert "MOTIVO_POR_MUNICIPIO" in sql
+    assert "JOIN" not in sql
 
 
 def test_get_motivo_por_municipio_filters_by_capitulo():

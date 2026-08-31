@@ -15,60 +15,54 @@ def _rows_to_df(cursor) -> pd.DataFrame:
 
 def get_indicador_capacidade_extendido(connection) -> pd.DataFrame:
     """Indicador de capacidade por município, com motivo dominante e
-    proporção de leitos SUS, já com o nome do município via JOIN.
+    proporção de leitos SUS.
+
+    O nome do município (antes obtido via JOIN com ADMIN.MUNICIPIOS_BRASILEIROS)
+    agora vem denormalizado direto nesta tabela — o time de dados removeu a
+    tabela de lookup e embutiu nome_municipio (e também população estimada /
+    internações por mil habitantes, ainda não usadas nesta página) direto em
+    ADMIN.INDICADOR_CAPACIDADE_MUNICIPIO_EXTENDIDO, a sucessora da antiga
+    ADMIN.INDICADOR_CAPACIDADE_EXTENDIDO.
     """
     cursor = connection.cursor()
     cursor.execute(
         """
         SELECT
-            i.municipio_codigo,
-            m.nome AS municipio_nome,
-            i.total_internacoes,
-            i.permanencia_media_dias,
-            i.estabelecimentos_distintos,
-            i.leitos_existentes_total,
-            i.leitos_sus_total,
-            i.internacoes_por_leito,
-            i.proporcao_leitos_sus,
-            i.motivo_dominante,
-            i.motivo_dominante_share
-        FROM ADMIN.INDICADOR_CAPACIDADE_EXTENDIDO i
-        JOIN ADMIN.MUNICIPIOS_BRASILEIROS m
-            ON SUBSTR(m.codigo_ibge, 1, 6) = i.municipio_codigo
-        ORDER BY i.internacoes_por_leito DESC
+            municipio_codigo,
+            nome_municipio AS municipio_nome,
+            total_internacoes,
+            permanencia_media_dias,
+            estabelecimentos_distintos,
+            leitos_existentes_total,
+            leitos_sus_total,
+            internacoes_por_leito,
+            proporcao_leitos_sus,
+            motivo_dominante,
+            motivo_dominante_share
+        FROM ADMIN.INDICADOR_CAPACIDADE_MUNICIPIO_EXTENDIDO
+        ORDER BY internacoes_por_leito DESC
         """
     )
     return _rows_to_df(cursor)
 
 
 def get_motivos_internacao(connection) -> pd.DataFrame:
-    """Ranking geral dos capítulos CID-10 por volume.
+    """Ranking geral dos capítulos CID-10 por volume, com permanência média.
 
-    WORKAROUND: a External Table ADMIN.MOTIVOS_INTERNACAO tem o column_list
-    deslocado — a coluna chamada MUNICIPIO_CODIGO na verdade guarda o
-    total_internacoes real, e a coluna chamada TOTAL_INTERNACOES guarda um
-    decimal pequeno (provavelmente permanencia_media_dias), não um código de
-    município nem um total. Confirmado cruzando as somas com MOTIVO_POR_MES,
-    que está corretamente rotulada. Aqui os nomes são realiasados pro
-    significado real, em vez de corrigir na fonte, por decisão de produto —
-    sinalizado pro time como bug de plataforma de dados a corrigir no DDL da
-    External Table.
-
-    MUNICIPIO_CODIGO é declarada VARCHAR2 (é feita pra guardar código como
-    texto), então o total real que está armazenado ali volta como string sem
-    um cast explícito — o TO_NUMBER evita que essa contagem seja ordenada
-    como texto (lexicograficamente) em vez de numericamente em qualquer
-    gráfico que a use.
+    ADMIN.MOTIVOS_INTERNACAO teve seu column_list corrigido pelo time de
+    dados — as colunas agora têm nomes e tipos corretos, então o workaround
+    de column-shift que existia aqui (TO_NUMBER(municipio_codigo) pra
+    recuperar o total real, ver histórico no git) não é mais necessário.
     """
     cursor = connection.cursor()
     cursor.execute(
         """
         SELECT
             capitulo_cid,
-            TO_NUMBER(municipio_codigo) AS total_internacoes,
-            total_internacoes AS permanencia_media_dias_aprox
+            total_internacoes,
+            permanencia_media_dias
         FROM ADMIN.MOTIVOS_INTERNACAO
-        ORDER BY TO_NUMBER(municipio_codigo) DESC
+        ORDER BY total_internacoes DESC
         """
     )
     return _rows_to_df(cursor)
@@ -102,7 +96,11 @@ def get_sazonalidade_mensal(connection) -> pd.DataFrame:
 
 
 def get_motivo_por_municipio(connection, capitulo_cid: str | None = None) -> pd.DataFrame:
-    """Internações por capítulo CID-10 e município, com nome do município via JOIN.
+    """Internações por capítulo CID-10 e município.
+
+    O nome do município (antes obtido via JOIN com ADMIN.MUNICIPIOS_BRASILEIROS,
+    removida do modelo) agora vem denormalizado direto em nome_municipio
+    nesta própria tabela.
 
     Passe capitulo_cid pra filtrar por um único capítulo (ex.: pra uma visão
     de "onde esse motivo se concentra geograficamente").
@@ -110,19 +108,17 @@ def get_motivo_por_municipio(connection, capitulo_cid: str | None = None) -> pd.
     cursor = connection.cursor()
     sql = """
         SELECT
-            mm.capitulo_cid,
-            mm.municipio_codigo,
-            m.nome AS municipio_nome,
-            mm.total_internacoes
-        FROM ADMIN.MOTIVO_POR_MUNICIPIO mm
-        JOIN ADMIN.MUNICIPIOS_BRASILEIROS m
-            ON SUBSTR(m.codigo_ibge, 1, 6) = mm.municipio_codigo
+            capitulo_cid,
+            municipio_codigo,
+            nome_municipio AS municipio_nome,
+            total_internacoes
+        FROM ADMIN.MOTIVO_POR_MUNICIPIO
     """
     params = None
     if capitulo_cid is not None:
-        sql += " WHERE mm.capitulo_cid = :capitulo_cid"
+        sql += " WHERE capitulo_cid = :capitulo_cid"
         params = {"capitulo_cid": capitulo_cid}
-    sql += " ORDER BY mm.total_internacoes DESC"
+    sql += " ORDER BY total_internacoes DESC"
 
     cursor.execute(sql, params)
     return _rows_to_df(cursor)
